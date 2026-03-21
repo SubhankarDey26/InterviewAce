@@ -4,8 +4,9 @@ const jwt=require("jsonwebtoken")
 const bcrypt=require("bcrypt")
 
 
-async function registerController(req,res) {
-    const {username,email,password}=req.body
+async function registerController(req,res){
+    const {email,username,password}=req.body
+
 
     const isUserAlreadyExist=await userModel.findOne({
         $or:[
@@ -21,14 +22,20 @@ async function registerController(req,res) {
         })
     }
 
-    const hash =bcrypt.hash(password,10)
-
+      const hash = await bcrypt.hash(password, 10)
+    
+    const user =await userModel.create({
+        username,
+        email,
+        password:hash
+    })
 
     const token=jwt.sign({
         id:user._id,
     },process.env.JWT_SECRET,{expiresIn:"1d"})
 
     res.cookie("token",token)
+
 
     res.status(201).json({
         message:"User Registered Succesfully",
@@ -37,17 +44,17 @@ async function registerController(req,res) {
             username:user.username
         }
     })
+
 }
 
 
-
-async function loginController(req,res)
-{
+async function loginController(req,res){
     const {username,email,password}=req.body
+
     const user=await userModel.findOne({
         $or:[
             {
-                username:username
+               username:username
             },
             {
                 email:email
@@ -55,23 +62,21 @@ async function loginController(req,res)
         ]
     })
 
-    if(!user)
-    {
-        return res.json(404).json({
-            Message:"User Not Found"
+    if(!user){
+        return res.status(404).json({
+            message:"User Not Found"
         })
     }
 
-    const isPasswordValid=await bcrypt.compare(password,user.password)
+    const ispasswordValid=await bcrypt.compare(password,user.password)
 
-    if(!isPasswordValid)
+    if(!ispasswordValid)
     {
         return res.status(401).json({
             message:"Password Invalid"
         })
     }
-
-    const token=jwt.sign(
+    const token =jwt.sign(
         {id:user._id},
         process.env.JWT_SECRET,
         {expiresIn:"1d"}
@@ -79,13 +84,12 @@ async function loginController(req,res)
 
     res.cookie("token",token)
 
+
     res.status(200).json({
         message:"User LogedIn Succesfully",
         user:{
             username:user.username,
             email:user.email,
-            bio:user.bio,
-            profileImage:user.profileImage
         }
     })
 }

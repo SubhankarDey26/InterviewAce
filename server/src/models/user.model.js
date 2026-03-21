@@ -1,6 +1,6 @@
 const mongoose=require("mongoose")
 
-const userSchema=new mongoose.Mongoose.Schema({
+const userSchema=new mongoose.Schema({
     username:{
         type:String,
         unique:[true,"Username Alreay Exist"],
