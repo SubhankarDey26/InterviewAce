@@ -1,0 +1,23 @@
+# ─── Web framework ────────────────────────────────────────────────────────────
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+
+# ─── ML / NLP core ────────────────────────────────────────────────────────────
+torch==2.1.2                          # CPU build; use torch==2.1.2+cu121 for CUDA
+transformers==4.37.0                  # DeBERTa-v3, tokenizers
+accelerate==0.26.1                    # Faster model loading
+
+# ─── spaCy ────────────────────────────────────────────────────────────────────
+spacy==3.7.2
+# After install, run: python -m spacy download en_core_web_md
+
+# ─── Data / training ──────────────────────────────────────────────────────────
+numpy==1.26.3
+scikit-learn==1.4.0                   # Metrics, splitting
+datasets==2.16.1                      # HuggingFace datasets (optional, for large datasets)
+sentencepiece==0.1.99                 # Required by DeBERTa tokenizer
+
+# ─── Utils ────────────────────────────────────────────────────────────────────
+python-dotenv==1.0.0
+httpx==0.26.0                         # For async HTTP in tests

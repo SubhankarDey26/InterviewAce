@@ -1,0 +1,19 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Model weights
+*.bin
+saved_models/
+
+# HuggingFace cache
+.cache/
+.huggingface/
+
+# Environment
+venv/
+env/
+
+# OS files
+.DS_Store
+Thumbs.db

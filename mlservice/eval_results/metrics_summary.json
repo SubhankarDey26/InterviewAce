@@ -1,0 +1,80 @@
+{
+  "relevance": {
+    "MAE": 18.6937,
+    "MSE": 362.4724,
+    "RMSE": 19.0387,
+    "R2": -23.1273,
+    "Pearson_r": 0.4597,
+    "Pearson_p": 0.010604,
+    "Spearman_r": 0.3083,
+    "Spearman_p": 0.097422,
+    "MBE": -18.6937,
+    "MAPE": 20.1669
+  },
+  "depth": {
+    "MAE": 20.5473,
+    "MSE": 454.9324,
+    "RMSE": 21.3291,
+    "R2": -11.2407,
+    "Pearson_r": 0.5438,
+    "Pearson_p": 0.001895,
+    "Spearman_r": 0.3578,
+    "Spearman_p": 0.052205,
+    "MBE": -20.5473,
+    "MAPE": 23.147
+  },
+  "clarity": {
+    "MAE": 18.3673,
+    "MSE": 344.7183,
+    "RMSE": 18.5666,
+    "R2": -48.5522,
+    "Pearson_r": 0.0492,
+    "Pearson_p": 0.796191,
+    "Spearman_r": 0.0178,
+    "Spearman_p": 0.925453,
+    "MBE": -18.3673,
+    "MAPE": 20.591
+  },
+  "confidence": {
+    "MAE": 12.799,
+    "MSE": 176.7052,
+    "RMSE": 13.2931,
+    "R2": -11.4626,
+    "Pearson_r": 0.4018,
+    "Pearson_p": 0.027741,
+    "Spearman_r": 0.2681,
+    "Spearman_p": 0.152082,
+    "MBE": -12.799,
+    "MAPE": 14.7962
+  },
+  "structure": {
+    "MAE": 11.6817,
+    "MSE": 163.8692,
+    "RMSE": 12.8011,
+    "R2": -4.2232,
+    "Pearson_r": 0.5165,
+    "Pearson_p": 0.003479,
+    "Spearman_r": 0.3435,
+    "Spearman_p": 0.063108,
+    "MBE": -11.6817,
+    "MAPE": 13.4434
+  },
+  "sentiment": {
+    "MAE": 11.391,
+    "MSE": 149.5742,
+    "RMSE": 12.2301,
+    "R2": -5.8178,
+    "Pearson_r": 0.5126,
+    "Pearson_p": 0.003779,
+    "Spearman_r": 0.4193,
+    "Spearman_p": 0.0211,
+    "MBE": -11.391,
+    "MAPE": 13.9916
+  },
+  "OVERALL": {
+    "MAE": 15.58,
+    "RMSE": 16.5945,
+    "R2": -6.7438,
+    "Pearson_r": 0.3104
+  }
+}
