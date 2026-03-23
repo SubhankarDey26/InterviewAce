@@ -31,7 +31,7 @@ const Login = ({ isOpen, onClose, onLoginSuccess }) => {
         setUsernameOrEmail("")
         setPassword("")
         onClose()
-        onLoginSuccess()
+        onLoginSuccess(response.data.user)
       }
     } catch (err) {
       if (err.response?.data?.message) {

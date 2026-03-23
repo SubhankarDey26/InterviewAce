@@ -1,7 +1,7 @@
 import { useState } from "react"
 import axios from "axios"
 
-const Register = ({ isOpen, onClose }) => {
+const Register = ({ isOpen, onClose, onRegisterSuccess }) => {
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -32,6 +32,9 @@ const Register = ({ isOpen, onClose }) => {
         setUsername("")
         setEmail("")
         setPassword("")
+        if (onRegisterSuccess) {
+          onRegisterSuccess(response.data.user)
+        }
       }
     } catch (err) {
       if (err.response?.data?.message) {

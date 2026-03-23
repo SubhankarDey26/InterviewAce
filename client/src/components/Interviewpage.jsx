@@ -3,10 +3,8 @@ import 'remixicon/fonts/remixicon.css'
 
 // ─── VAPI INTEGRATION ─────────────────────────────────────────────────────────
 // Install: npm install @vapi-ai/web
-// Then uncomment the import below and add your keys to .env
-// import Vapi from "@vapi-ai/web"
-//
-// const vapi = new Vapi(import.meta.env.VITE_VAPI_PUBLIC_KEY)
+// and set VITE_VAPI_PUBLIC_KEY in client/.env (already done).
+import Vapi from "@vapi-ai/web"
 // ─────────────────────────────────────────────────────────────────────────────
 
 const InterviewPage = ({ onLogout, onBack, user, interviewConfig }) => {
@@ -58,38 +56,74 @@ After 5-7 questions, thank them and end the interview politely.`
 
   // ── Start Call ──
   const startInterview = async () => {
+    console.log("[InterviewPage] startInterview called")
     setCallStatus("connecting")
     setTranscript([])
     setFeedback(null)
 
     try {
-      // ── REAL VAPI INTEGRATION (uncomment when keys are set) ──────────────
-      // vapiRef.current = new Vapi(import.meta.env.VITE_VAPI_PUBLIC_KEY)
-      //
-      // vapiRef.current.on("call-start",   () => setCallStatus("active"))
-      // vapiRef.current.on("call-end",     () => { setCallStatus("ended"); setAiSpeaking(false); setUserSpeaking(false) })
-      // vapiRef.current.on("speech-start", () => setAiSpeaking(true))
-      // vapiRef.current.on("speech-end",   () => setAiSpeaking(false))
-      // vapiRef.current.on("message", (msg) => {
-      //   if (msg.type === "transcript") {
-      //     setTranscript(prev => [...prev, { role: msg.role, text: msg.transcript }])
-      //   }
-      // })
-      // vapiRef.current.on("error", (e) => { console.error(e); setCallStatus("idle") })
-      //
-      // await vapiRef.current.start({
-      //   transcriber: { provider: "deepgram", model: "nova-2", language: "en-US" },
-      //   model: {
-      //     provider: "openai",
-      //     model: "gpt-4o",
-      //     systemPrompt: buildSystemPrompt(),
-      //   },
-      //   voice: { provider: "11labs", voiceId: "burt" },
-      //   name: "Interview-Ace AI",
-      // })
-      // ─────────────────────────────────────────────────────────────────────
+      const key = import.meta.env.VITE_VAPI_PUBLIC_KEY
+      console.log("[InterviewPage] VAPI key from env:", key)
+      if (!key) {
+        console.error("VAPI key missing. Please set VITE_VAPI_PUBLIC_KEY in client/.env")
+        setCallStatus("idle")
+        return
+      }
 
-      // ── DEMO MODE (remove when VAPI keys are ready) ───────────────────────
+      vapiRef.current = new Vapi(key)
+      vapiRef.current.on("call-start", () => {
+        console.log("[InterviewPage] VAPI call-start")
+        setCallStatus("active")
+      })
+      vapiRef.current.on("call-end", () => {
+        console.log("[InterviewPage] VAPI call-end")
+        setCallStatus("ended")
+        setAiSpeaking(false)
+        setUserSpeaking(false)
+      })
+      vapiRef.current.on("speech-start", () => {
+        console.log("[InterviewPage] VAPI speech-start")
+        setAiSpeaking(true)
+      })
+      vapiRef.current.on("speech-end", () => {
+        console.log("[InterviewPage] VAPI speech-end")
+        setAiSpeaking(false)
+      })
+      vapiRef.current.on("message", (msg) => {
+        console.log("[InterviewPage] VAPI message", msg)
+        if (msg.type === "transcript") {
+          setTranscript(prev => [...prev, { role: msg.role, text: msg.transcript }])
+        } else if (msg.type === "response" && msg.text) {
+          setTranscript(prev => [...prev, { role: "assistant", text: msg.text }])
+        }
+      })
+      vapiRef.current.on("error", (e) => {
+        console.error("[InterviewPage] VAPI error", e)
+        setCallStatus("idle")
+      })
+
+      await vapiRef.current.start({
+        transcriber: { provider: "openai", model: "gpt-4o-mini-transcribe", language: "en" },
+        model: {
+          provider: "openai",
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: buildSystemPrompt() },
+          ],
+        },
+        // voice is optional and may require separate credential setup. Keep it simple for first test.
+        // voice: { provider: "11labs", voiceId: "burt" },
+        firstMessage: `Hello ${interviewConfig?.name || "there"}, let's begin the mock interview.`,
+        firstMessageMode: "assistant-speaks-first",
+      })
+
+      // Optionally prime first question if VAPI doesn't auto-answer from system prompt
+      console.log("[InterviewPage] VAPI start succeeded")
+      setTranscript(prev => [...prev, { role: "assistant", text: "Hi! I am your interviewer. Let's start with your background and experience relevant to this role." }])
+    } catch (err) {
+      console.warn("VAPI start failed, falling back to demo mode:", err)
+
+      // ── DEMO MODE ──
       await new Promise(r => setTimeout(r, 1200))
       setCallStatus("active")
       const demoLines = [
@@ -102,10 +136,7 @@ After 5-7 questions, thank them and end the interview politely.`
         setAiSpeaking(false)
         setTranscript(prev => [...prev, demoLines[i]])
       }
-      // ─────────────────────────────────────────────────────────────────────
-    } catch (err) {
-      console.error("VAPI start error:", err)
-      setCallStatus("idle")
+      // ──────────────
     }
   }
 
