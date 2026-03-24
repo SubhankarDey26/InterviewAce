@@ -191,6 +191,9 @@ def discretize(scores, thresholds=(40, 70)):
 
 
 def save_metrics(results: dict, out_dir: str):
+
+    os.makedirs(out_dir, exist_ok=True)  # <-- FIX
+
     # JSON
     with open(os.path.join(out_dir, "metrics_summary.json"), "w") as f:
         json.dump(results, f, indent=2)

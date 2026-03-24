@@ -383,7 +383,7 @@ const Dashboard = ({ onLogout, user, onStartInterview }) => {
           </button>
 
           {/* Card 2 – AI Resume Platform (coming soon) */}
-          <div className="relative p-7 rounded-2xl border border-gray-800 bg-black/20 opacity-60 cursor-not-allowed select-none">
+          {/* <div className="relative p-7 rounded-2xl border border-gray-800 bg-black/20 opacity-60 cursor-not-allowed select-none">
             <div className="absolute top-4 right-4 text-xs tracking-widest px-3 py-1 rounded-full border border-gray-700 text-gray-500">
               SOON
             </div>
@@ -401,7 +401,7 @@ const Dashboard = ({ onLogout, user, onStartInterview }) => {
               <span>COMING SOON</span>
               <i className="ri-time-line text-base" />
             </div>
-          </div>
+          </div> */}
 
         </div>
       </section>
