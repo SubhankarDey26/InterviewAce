@@ -1,28 +1,636 @@
+// import { useState, useEffect, useRef } from "react"
+// import 'remixicon/fonts/remixicon.css'
+// import Vapi from "@vapi-ai/web"
+
+// const InterviewPage = ({ onLogout, onBack, user, interviewConfig }) => {
+//   const [callStatus, setCallStatus]     = useState("idle")
+//   const [isMuted, setIsMuted]           = useState(false)
+//   const [transcript, setTranscript]     = useState([])
+//   const [feedback, setFeedback]         = useState(null)
+//   const [aiSpeaking, setAiSpeaking]     = useState(false)
+//   const [userSpeaking, setUserSpeaking] = useState(false)
+//   const [callDuration, setCallDuration] = useState(0)
+//   const timerRef     = useRef(null)
+//   const vapiRef      = useRef(null)
+//   const micStreamRef = useRef(null)
+//   const scrollRef    = useRef(null)
+
+//   // ── Auto-scroll transcript ──
+//   useEffect(() => {
+//     if (scrollRef.current) {
+//       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+//     }
+//   }, [transcript])
+
+//   // ── Timer ──
+//   useEffect(() => {
+//     if (callStatus === "active") {
+//       timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000)
+//     } else {
+//       clearInterval(timerRef.current)
+//       if (callStatus === "idle") setCallDuration(0)
+//     }
+//     return () => clearInterval(timerRef.current)
+//   }, [callStatus])
+
+//   const formatTime = (s) =>
+//     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
+
+//   // ── Build system prompt ──
+//   const buildSystemPrompt = () => {
+//     const cfg = interviewConfig || {}
+//     return `You are a professional ${cfg.questionType || "Technical"} interviewer at a top tech company.
+// Candidate name: ${cfg.name || "the candidate"}.
+// Their skills: ${cfg.technicalSkills || "general software development"}.
+// Job description: ${cfg.jobDescription || "a software engineering role"}.
+// Conduct a realistic interview. Ask one question at a time. Be professional but conversational.
+// After they answer, give brief acknowledgment then ask the next question.
+// After 5-7 questions, thank them and end the interview politely.`
+//   }
+
+//   // ── Start Call ──
+//   const startInterview = async () => {
+//     setCallStatus("connecting")
+//     setTranscript([])
+//     setFeedback(null)
+
+//     // ── FIX 1: Request microphone permission FIRST ──
+//     try {
+//       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+//       micStreamRef.current = micStream
+//     } catch (micErr) {
+//       console.error("Microphone permission denied:", micErr)
+//       alert("Microphone access is required for the interview. Please allow microphone access and try again.")
+//       setCallStatus("idle")
+//       return
+//     }
+
+//     const key = import.meta.env.VITE_VAPI_PUBLIC_KEY
+//     if (!key) {
+//       console.error("VAPI key missing. Please set VITE_VAPI_PUBLIC_KEY in client/.env")
+//       runDemoMode()
+//       return
+//     }
+
+//     try {
+//       vapiRef.current = new Vapi(key)
+
+//       vapiRef.current.on("call-start", () => {
+//         console.log("[VAPI] call-start")
+//         setCallStatus("active")
+//       })
+
+//       vapiRef.current.on("call-end", () => {
+//         console.log("[VAPI] call-end")
+//         setCallStatus("ended")
+//         setAiSpeaking(false)
+//         setUserSpeaking(false)
+//         stopMic()
+//       })
+
+//       vapiRef.current.on("speech-start", () => {
+//         setAiSpeaking(true)
+//         setUserSpeaking(false)
+//       })
+
+//       vapiRef.current.on("speech-end", () => {
+//         setAiSpeaking(false)
+//       })
+
+//       vapiRef.current.on("volume-level", (volume) => {
+//         // When AI is not speaking, volume reflects user mic
+//         if (!aiSpeaking) {
+//           setUserSpeaking(volume > 0.05)
+//         }
+//       })
+
+//       vapiRef.current.on("message", (msg) => {
+//         console.log("[VAPI] message:", msg)
+//         // ── FIX 2: Correct transcript event handling ──
+//         if (msg.type === "transcript" && msg.transcriptType === "final") {
+//           setTranscript(prev => [...prev, { role: msg.role, text: msg.transcript }])
+//         }
+//       })
+
+//       vapiRef.current.on("error", (e) => {
+//         console.error("[VAPI] error:", e)
+//         setCallStatus("idle")
+//         stopMic()
+//       })
+
+//       // ── FIX 3: Correct VAPI start config ──
+//       // - transcriber.provider must be "deepgram" (not "openai")
+//       // - model config uses "systemPrompt" string (not "messages" array)
+//       // - voice must be specified
+//       await vapiRef.current.start({
+//         transcriber: {
+//           provider: "deepgram",       // ✅ was "openai" — deepgram is VAPI's standard
+//           model: "nova-2",
+//           language: "en-US",
+//         },
+//         model: {
+//           provider: "openai",
+//           model: "gpt-4o",
+//           systemPrompt: buildSystemPrompt(), // ✅ was messages:[{role:"system",...}]
+//         },
+//         voice: {
+//           provider: "openai",         // ✅ was missing entirely
+//           voiceId: "alloy",
+//         },
+//         firstMessage: `Hello ${interviewConfig?.name || "there"}, let's begin the mock interview.`,
+//         firstMessageMode: "assistant-speaks-first",
+//       })
+
+//       console.log("[VAPI] start succeeded")
+
+//     } catch (err) {
+//       console.warn("[VAPI] start failed, falling back to demo mode:", err.message)
+//       runDemoMode()
+//     }
+//   }
+
+//   // ── Stop mic tracks ──
+//   const stopMic = () => {
+//     if (micStreamRef.current) {
+//       micStreamRef.current.getTracks().forEach(t => t.stop())
+//       micStreamRef.current = null
+//     }
+//   }
+
+//   // ── Demo Mode fallback ──
+//   const runDemoMode = async () => {
+//     await new Promise(r => setTimeout(r, 1200))
+//     setCallStatus("active")
+//     const demoLines = [
+//       { role: "assistant", text: `Hello ${interviewConfig?.name || "there"}! I'm your AI interviewer. We'll be doing a ${interviewConfig?.questionType || "technical"} interview. Are you ready?` },
+//       { role: "assistant", text: "Great! Let's start — can you walk me through your background and experience?" },
+//     ]
+//     for (let i = 0; i < demoLines.length; i++) {
+//       await new Promise(r => setTimeout(r, 800 * (i + 1)))
+//       setAiSpeaking(true)
+//       await new Promise(r => setTimeout(r, 1500))
+//       setAiSpeaking(false)
+//       setTranscript(prev => [...prev, demoLines[i]])
+//     }
+//   }
+
+//   // ── End Call ──
+//   const endInterview = () => {
+//     // ── FIX 4: Actually stop VAPI (was commented out) ──
+//     if (vapiRef.current) {
+//       vapiRef.current.stop()
+//       vapiRef.current = null
+//     }
+//     stopMic()
+
+//     setCallStatus("ended")
+//     setAiSpeaking(false)
+//     setUserSpeaking(false)
+
+//     // Placeholder feedback — replace with real ML data
+//     setFeedback({
+//       overallScore: 78,
+//       relevance: 82,
+//       depth: 74,
+//       communication: 79,
+//       strengths: ["Clear problem-solving approach", "Good use of examples"],
+//       improvements: ["Elaborate more on system design tradeoffs", "Pace answers slightly slower"],
+//       summary: "Strong candidate with good fundamentals. Solid understanding of core concepts with room to deepen architectural thinking.",
+//     })
+//   }
+
+//   // ── Toggle Mute ──
+//   const toggleMute = () => {
+//     if (vapiRef.current) {
+//       vapiRef.current.setMuted(!isMuted)
+//     }
+//     setIsMuted(m => !m)
+//   }
+
+//   // ── Download transcript ──
+//   const downloadResult = () => {
+//     if (!feedback && transcript.length === 0) return
+//     const lines = transcript.map(t => `[${t.role.toUpperCase()}]: ${t.text}`).join("\n\n")
+//     const fb = feedback
+//       ? `\n\n--- FEEDBACK ---\nOverall Score: ${feedback.overallScore}/100\nSummary: ${feedback.summary}`
+//       : ""
+//     const blob = new Blob([lines + fb], { type: "text/plain" })
+//     const url = URL.createObjectURL(blob)
+//     const a = document.createElement("a")
+//     a.href = url
+//     a.download = `interview-${interviewConfig?.name || "result"}-${Date.now()}.txt`
+//     a.click()
+//     URL.revokeObjectURL(url)
+//   }
+
+//   const statusLabel = { idle: "Ready", connecting: "Connecting…", active: "Live", ended: "Completed" }
+//   const statusColor = { idle: "text-gray-500", connecting: "text-yellow-400", active: "text-green-400", ended: "text-[#e99b63]" }
+
+//   return (
+//     <div className="min-h-screen bg-black text-white flex flex-col overflow-hidden">
+
+//       <div className="fixed top-[15%] right-[-8%] w-[25rem] h-0 shadow-[0_0_600px_25px_#e99b6322] -rotate-[25deg] -z-10 pointer-events-none" />
+//       <div className="fixed bottom-[10%] left-[-5%] w-[20rem] h-0 shadow-[0_0_400px_15px_#e99b6318] rotate-[15deg] -z-10 pointer-events-none" />
+
+//       {/* ── TOP NAV ── */}
+//       <header className="flex items-center gap-3 px-4 lg:px-8 py-3 border-b border-gray-800 shrink-0">
+//         <button className="px-5 py-2 rounded-lg border border-[#e99b63] text-[#e99b63] text-xs tracking-widest font-medium bg-[#e99b63]/8 cursor-pointer">
+//           1 · INTERVIEW
+//         </button>
+//         <button disabled className="px-5 py-2 rounded-lg border border-gray-800 text-gray-600 text-xs tracking-widest font-medium cursor-not-allowed">
+//           2 · RESUME
+//         </button>
+//         <div className="flex-1" />
+//         <div className={`hidden sm:flex items-center gap-2 text-xs tracking-widest ${statusColor[callStatus]}`}>
+//           <span className={`w-1.5 h-1.5 rounded-full ${
+//             callStatus === "active"     ? "bg-green-400 animate-pulse" :
+//             callStatus === "connecting" ? "bg-yellow-400 animate-pulse" :
+//             callStatus === "ended"      ? "bg-[#e99b63]" : "bg-gray-600"
+//           }`} />
+//           {statusLabel[callStatus]}
+//           {callStatus === "active" && (
+//             <span className="ml-1 font-mono text-green-400">{formatTime(callDuration)}</span>
+//           )}
+//         </div>
+//         <button
+//           onClick={onLogout}
+//           className="flex items-center gap-2 py-2 px-4 rounded-lg border border-gray-700 text-xs tracking-widest text-gray-400 transition-all duration-200 hover:border-white hover:text-white hover:bg-white/5 cursor-pointer"
+//         >
+//           <i className="ri-logout-box-r-line" />
+//           LOGOUT
+//         </button>
+//       </header>
+
+//       {/* ── MAIN LAYOUT ── */}
+//       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+
+//         {/* ════ LEFT PANEL – RESULT ════ */}
+//         <aside className="w-full lg:w-[38%] border-b lg:border-b-0 lg:border-r border-gray-800 flex flex-col p-5 gap-4 overflow-hidden">
+//           <div className="flex items-center justify-between shrink-0">
+//             <div className="flex items-center gap-2">
+//               <i className="ri-bar-chart-grouped-line text-[#e99b63] text-lg" />
+//               <span className="text-xs tracking-[0.2em] text-[#e99b63] uppercase font-medium">Result</span>
+//             </div>
+//             {feedback && (
+//               <span className="text-xs tracking-widest text-gray-500">
+//                 Score: <span className="text-white font-semibold">{feedback.overallScore}/100</span>
+//               </span>
+//             )}
+//           </div>
+
+//           {feedback ? (
+//             <div className="flex-1 overflow-y-auto space-y-5 pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#333 transparent" }}>
+//               <div className="space-y-3">
+//                 {[
+//                   { label: "Relevance",     value: feedback.relevance },
+//                   { label: "Depth",         value: feedback.depth },
+//                   { label: "Communication", value: feedback.communication },
+//                 ].map(({ label, value }) => (
+//                   <div key={label}>
+//                     <div className="flex justify-between text-xs tracking-wider text-gray-400 mb-1.5">
+//                       <span>{label}</span><span className="text-white">{value}%</span>
+//                     </div>
+//                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+//                       <div className="h-full bg-gradient-to-r from-[#e99b63] to-[#c47a40] rounded-full"
+//                         style={{ width: `${value}%`, transition: "width 1.2s cubic-bezier(.4,0,.2,1)" }} />
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+
+//               <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-800 bg-white/[0.02]">
+//                 <div className="relative w-16 h-16 shrink-0">
+//                   <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+//                     <circle cx="32" cy="32" r="26" fill="none" stroke="#1f1f1f" strokeWidth="6" />
+//                     <circle cx="32" cy="32" r="26" fill="none" stroke="#e99b63" strokeWidth="6"
+//                       strokeDasharray={`${2 * Math.PI * 26}`}
+//                       strokeDashoffset={`${2 * Math.PI * 26 * (1 - feedback.overallScore / 100)}`}
+//                       strokeLinecap="round"
+//                       style={{ transition: "stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)" }} />
+//                   </svg>
+//                   <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+//                     {feedback.overallScore}
+//                   </span>
+//                 </div>
+//                 <div>
+//                   <p className="text-xs tracking-widest text-gray-500 uppercase mb-1">Overall</p>
+//                   <p className="text-sm text-gray-300 leading-relaxed">{feedback.summary}</p>
+//                 </div>
+//               </div>
+
+//               <div className="space-y-2">
+//                 <p className="text-xs tracking-widest text-gray-600 uppercase">Strengths</p>
+//                 {feedback.strengths.map((s, i) => (
+//                   <div key={i} className="flex items-start gap-2 text-sm text-gray-300">
+//                     <i className="ri-check-line text-green-400 mt-0.5 shrink-0" /><span>{s}</span>
+//                   </div>
+//                 ))}
+//               </div>
+
+//               <div className="space-y-2">
+//                 <p className="text-xs tracking-widest text-gray-600 uppercase">Improve</p>
+//                 {feedback.improvements.map((s, i) => (
+//                   <div key={i} className="flex items-start gap-2 text-sm text-gray-300">
+//                     <i className="ri-arrow-up-circle-line text-[#e99b63] mt-0.5 shrink-0" /><span>{s}</span>
+//                   </div>
+//                 ))}
+//               </div>
+//             </div>
+//           ) : (
+//             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center border border-dashed border-gray-800 rounded-2xl p-6">
+//               <div className="w-14 h-14 rounded-full border border-gray-800 flex items-center justify-center">
+//                 <i className="ri-bar-chart-2-line text-2xl text-gray-700" />
+//               </div>
+//               <p className="text-xs tracking-widest text-gray-700 uppercase max-w-[16rem]">
+//                 {callStatus === "active" ? "Interview in progress…" : "Results will appear here after your interview"}
+//               </p>
+//               {callStatus === "active" && (
+//                 <div className="flex gap-1 mt-1">
+//                   {[0, 150, 300].map(delay => (
+//                     <span key={delay} className="w-1.5 h-1.5 bg-[#e99b63] rounded-full animate-bounce"
+//                       style={{ animationDelay: `${delay}ms` }} />
+//                   ))}
+//                 </div>
+//               )}
+//             </div>
+//           )}
+
+//           <button
+//             onClick={downloadResult}
+//             disabled={!feedback && transcript.length === 0}
+//             className="shrink-0 flex items-center justify-center gap-2 py-3 px-5 rounded-xl border border-gray-700 text-sm tracking-widest text-gray-400 transition-all duration-200 hover:border-[#e99b63] hover:text-[#e99b63] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+//           >
+//             <i className="ri-download-2-line" />Download
+//           </button>
+//         </aside>
+
+//         {/* ════ RIGHT PANEL – VAPI AI ════ */}
+//         <main className="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 gap-8">
+//           <div className="relative w-full max-w-lg">
+//             <div className={`relative rounded-2xl border overflow-hidden transition-all duration-500
+//               ${callStatus === "active"
+//                 ? aiSpeaking
+//                   ? "border-[#e99b63] shadow-[0_0_40px_rgba(233,155,99,0.2)]"
+//                   : "border-gray-700 shadow-[0_0_20px_rgba(233,155,99,0.08)]"
+//                 : "border-gray-800"}
+//               bg-gradient-to-b from-[#0d0d0d] to-black`}>
+
+//               {callStatus === "active" && aiSpeaking && (
+//                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#e99b63] to-transparent" />
+//               )}
+
+//               <div className="p-8 min-h-[18rem] flex flex-col items-center justify-center gap-6">
+//                 <div className="relative">
+//                   <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300
+//                     ${callStatus === "active"
+//                       ? "bg-[#e99b63]/15 border-2 border-[#e99b63]/60"
+//                       : "bg-gray-900 border-2 border-gray-800"}`}>
+//                     <i className={`ri-customer-service-2-line text-4xl transition-colors duration-300
+//                       ${callStatus === "active" ? "text-[#e99b63]" : "text-gray-600"}`} />
+//                   </div>
+//                   {callStatus === "active" && aiSpeaking && (
+//                     <>
+//                       <span className="absolute inset-0 rounded-full border border-[#e99b63]/40 animate-ping" />
+//                       <span className="absolute -inset-3 rounded-full border border-[#e99b63]/20 animate-ping" style={{ animationDelay: "200ms" }} />
+//                     </>
+//                   )}
+//                 </div>
+
+//                 {callStatus === "idle" && (
+//                   <div className="text-center">
+//                     <p className="text-lg font-light tracking-widest text-gray-300 mb-1">VAPI AI</p>
+//                     <p className="text-xs tracking-[0.2em] text-gray-600">
+//                       {interviewConfig?.questionType?.toUpperCase() || "INTERVIEW"} · VOICE ASSISTANT
+//                     </p>
+//                   </div>
+//                 )}
+
+//                 {callStatus === "connecting" && (
+//                   <div className="text-center space-y-2">
+//                     <p className="text-sm tracking-widest text-yellow-400">Connecting…</p>
+//                     <p className="text-xs text-gray-600">Requesting microphone & starting session</p>
+//                   </div>
+//                 )}
+
+//                 {callStatus === "active" && (
+//                   <div className="text-center space-y-3 w-full">
+//                     <div className="flex items-end justify-center gap-1 h-10">
+//                       {Array.from({ length: 20 }).map((_, i) => (
+//                         <div key={i}
+//                           className={`w-1.5 rounded-full transition-all duration-150 ${
+//                             aiSpeaking ? "bg-[#e99b63]" : userSpeaking ? "bg-white" : "bg-gray-700"
+//                           }`}
+//                           style={{
+//                             height: (aiSpeaking || userSpeaking) ? "4px" : "4px",
+//                             animation: (aiSpeaking || userSpeaking)
+//                               ? `wave ${0.4 + i * 0.05}s ease-in-out infinite alternate` : "none",
+//                           }}
+//                         />
+//                       ))}
+//                     </div>
+//                     <p className="text-xs tracking-widest text-gray-500">
+//                       {aiSpeaking ? "AI is speaking…" : userSpeaking ? "Listening…" : "Your turn to respond"}
+//                     </p>
+//                   </div>
+//                 )}
+
+//                 {callStatus === "ended" && (
+//                   <div className="text-center space-y-2">
+//                     <i className="ri-checkbox-circle-line text-4xl text-[#e99b63]" />
+//                     <p className="text-sm tracking-widest text-[#e99b63]">Interview Complete</p>
+//                     <p className="text-xs tracking-wider text-gray-600">Review your results on the left</p>
+//                   </div>
+//                 )}
+//               </div>
+
+//               {callStatus === "active" && transcript.length > 0 && (
+//                 <div className="border-t border-gray-800 p-4">
+//                   <p className="text-xs text-gray-500 tracking-wider line-clamp-2">
+//                     <span className={transcript[transcript.length - 1]?.role === "assistant" ? "text-[#e99b63]" : "text-white"}>
+//                       {transcript[transcript.length - 1]?.role === "assistant" ? "AI: " : "You: "}
+//                     </span>
+//                     {transcript[transcript.length - 1]?.text}
+//                   </p>
+//                 </div>
+//               )}
+//             </div>
+//           </div>
+
+//           {/* ── Controls ── */}
+//           <div className="flex flex-col items-center gap-4 w-full max-w-lg">
+//             {callStatus === "idle" && (
+//               <button onClick={startInterview}
+//                 className="w-full py-4 px-8 rounded-full bg-[#a7a7a7] text-black font-semibold uppercase tracking-widest text-sm transition-all duration-300 hover:bg-white hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] cursor-pointer flex items-center justify-center gap-3">
+//                 <i className="ri-mic-line text-lg" />START INTERVIEW
+//               </button>
+//             )}
+
+//             {callStatus === "connecting" && (
+//               <button disabled className="w-full py-4 px-8 rounded-full bg-gray-800 text-gray-500 font-semibold uppercase tracking-widest text-sm cursor-not-allowed flex items-center justify-center gap-3">
+//                 <span className="w-3 h-3 rounded-full border-2 border-gray-500 border-t-white animate-spin" />
+//                 CONNECTING
+//               </button>
+//             )}
+
+//             {callStatus === "active" && (
+//               <div className="flex gap-3 w-full">
+//                 <button onClick={toggleMute}
+//                   className={`flex items-center justify-center gap-2 py-4 px-5 rounded-full border text-sm tracking-widest font-medium transition-all duration-200 cursor-pointer
+//                     ${isMuted
+//                       ? "border-red-500/60 text-red-400 bg-red-500/10"
+//                       : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white"}`}>
+//                   <i className={isMuted ? "ri-mic-off-line" : "ri-mic-line"} />
+//                   <span className="hidden sm:inline">{isMuted ? "UNMUTE" : "MUTE"}</span>
+//                 </button>
+//                 <button onClick={endInterview}
+//                   className="flex-1 py-4 px-6 rounded-full bg-red-500/15 border border-red-500/40 text-red-400 font-semibold uppercase tracking-widest text-sm transition-all duration-200 hover:bg-red-500/25 hover:border-red-400 cursor-pointer flex items-center justify-center gap-3">
+//                   <i className="ri-stop-circle-line text-lg" />END INTERVIEW
+//                 </button>
+//               </div>
+//             )}
+
+//             {callStatus === "ended" && (
+//               <div className="flex gap-3 w-full">
+//                 <button
+//                   onClick={() => { setCallStatus("idle"); setTranscript([]); setFeedback(null) }}
+//                   className="flex-1 py-4 px-6 rounded-full border border-gray-700 text-gray-400 font-semibold uppercase tracking-widest text-sm transition-all duration-200 hover:border-white hover:text-white cursor-pointer flex items-center justify-center gap-2">
+//                   <i className="ri-restart-line" />RETRY
+//                 </button>
+//                 <button onClick={onBack}
+//                   className="flex-1 py-4 px-6 rounded-full bg-[#a7a7a7] text-black font-semibold uppercase tracking-widest text-sm transition-all duration-300 hover:bg-white cursor-pointer flex items-center justify-center gap-2">
+//                   <i className="ri-arrow-left-line" />DASHBOARD
+//                 </button>
+//               </div>
+//             )}
+
+//             {interviewConfig && callStatus !== "ended" && (
+//               <div className="flex flex-wrap gap-2 justify-center">
+//                 {[
+//                   { icon: "ri-user-3-line",      label: interviewConfig.name },
+//                   { icon: "ri-code-s-slash-line", label: interviewConfig.questionType },
+//                   { icon: "ri-tools-line",        label: interviewConfig.technicalSkills?.split(",")[0]?.trim() },
+//                 ].filter(x => x.label).map(({ icon, label }) => (
+//                   <span key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-800 text-xs tracking-wider text-gray-500">
+//                     <i className={icon} />{label}
+//                   </span>
+//                 ))}
+//               </div>
+//             )}
+//           </div>
+//         </main>
+//       </div>
+
+//       {transcript.length > 2 && callStatus !== "idle" && (
+//         <div ref={scrollRef}
+//           className="hidden lg:block fixed bottom-0 right-0 w-[60%] max-h-24 overflow-y-auto bg-black/80 backdrop-blur border-t border-gray-800 px-6 py-3 space-y-1"
+//           style={{ scrollbarWidth: "none" }}>
+//           {transcript.slice(-6).map((t, i) => (
+//             <p key={i} className="text-xs text-gray-600 truncate">
+//               <span className={t.role === "assistant" ? "text-[#e99b63]/70" : "text-white/60"}>
+//                 {t.role === "assistant" ? "AI: " : "You: "}
+//               </span>
+//               {t.text}
+//             </p>
+//           ))}
+//         </div>
+//       )}
+
+//       <style>{`
+//         @keyframes wave {
+//           from { transform: scaleY(0.4); }
+//           to   { transform: scaleY(1.2); }
+//         }
+//       `}</style>
+//     </div>
+//   )
+// }
+
+// export default InterviewPage
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { useState, useEffect, useRef } from "react"
 import 'remixicon/fonts/remixicon.css'
 import Vapi from "@vapi-ai/web"
+import axios from "axios"
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000"
 
 const InterviewPage = ({ onLogout, onBack, user, interviewConfig }) => {
-  const [callStatus, setCallStatus]     = useState("idle")
-  const [isMuted, setIsMuted]           = useState(false)
-  const [transcript, setTranscript]     = useState([])
-  const [feedback, setFeedback]         = useState(null)
-  const [aiSpeaking, setAiSpeaking]     = useState(false)
-  const [userSpeaking, setUserSpeaking] = useState(false)
-  const [callDuration, setCallDuration] = useState(0)
-  const timerRef     = useRef(null)
-  const vapiRef      = useRef(null)
-  const micStreamRef = useRef(null)
-  const scrollRef    = useRef(null)
+  const [callStatus, setCallStatus]         = useState("idle")
+  const [isMuted, setIsMuted]               = useState(false)
+  const [transcript, setTranscript]         = useState([])
+  const [feedback, setFeedback]             = useState(null)
+  const [aiSpeaking, setAiSpeaking]         = useState(false)
+  const [userSpeaking, setUserSpeaking]     = useState(false)
+  const [callDuration, setCallDuration]     = useState(0)
+  const [interviewQuestions, setInterviewQuestions] = useState([])
+  const [questionsLoading, setQuestionsLoading]     = useState(true)
+  const [questionsError, setQuestionsError]         = useState("")
+  const [scoring, setScoring]               = useState(false)
 
-  // ── Auto-scroll transcript ──
+  const timerRef      = useRef(null)
+  const vapiRef       = useRef(null)
+  const micStreamRef  = useRef(null)
+  const scrollRef     = useRef(null)
+  const transcriptRef = useRef([])
+
+  // keep ref in sync
+  useEffect(() => { transcriptRef.current = transcript }, [transcript])
+
+  // fetch 3 questions from backend on mount
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
+    const type = interviewConfig?.questionType || "technical"
+    setQuestionsLoading(true)
+    axios
+      .get(`${API_URL}/api/interview/questions?type=${type}&count=3`)
+      .then(res => {
+        setInterviewQuestions(res.data.questions || [])
+        setQuestionsLoading(false)
+      })
+      .catch(err => {
+        console.error("[fetchQuestions] error:", err)
+        setQuestionsError("Failed to load interview questions. Please go back and retry.")
+        setQuestionsLoading(false)
+      })
+  }, [interviewConfig?.questionType])
+
+  // auto-scroll transcript
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [transcript])
 
-  // ── Timer ──
+  // timer
   useEffect(() => {
     if (callStatus === "active") {
       timerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000)
@@ -33,123 +641,184 @@ const InterviewPage = ({ onLogout, onBack, user, interviewConfig }) => {
     return () => clearInterval(timerRef.current)
   }, [callStatus])
 
-  const formatTime = (s) =>
+  const formatTime = s =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
 
-  // ── Build system prompt ──
+  // ── Build STRICT system prompt with exact questions ──────────────────────
   const buildSystemPrompt = () => {
-    const cfg = interviewConfig || {}
-    return `You are a professional ${cfg.questionType || "Technical"} interviewer at a top tech company.
-Candidate name: ${cfg.name || "the candidate"}.
-Their skills: ${cfg.technicalSkills || "general software development"}.
-Job description: ${cfg.jobDescription || "a software engineering role"}.
-Conduct a realistic interview. Ask one question at a time. Be professional but conversational.
-After they answer, give brief acknowledgment then ask the next question.
-After 5-7 questions, thank them and end the interview politely.`
+    const cfg  = interviewConfig || {}
+    const name = cfg.name || "candidate"
+    const type = cfg.questionType || "Technical"
+    const qs   = interviewQuestions
+
+    const q1 = qs[0]?.question || "Tell me about a challenging project you worked on."
+    const q2 = qs[1]?.question || "What is your biggest technical strength?"
+    const q3 = qs[2]?.question || "How do you handle tight deadlines?"
+
+    return `You are a professional ${type} interviewer. Follow this EXACT script in order — do not deviate.
+
+STEP 1 — Introduction: Say exactly: "Hello ${name}! Welcome to your ${type} interview. I am your AI interviewer today. Let us begin. Please introduce yourself and briefly describe your relevant experience."
+
+STEP 2 — After the candidate finishes, say: "Great, thank you!" Then ask EXACTLY this question: "${q1}"
+
+STEP 3 — After the candidate finishes, say: "Understood." Then ask EXACTLY this question: "${q2}"
+
+STEP 4 — After the candidate finishes, say: "Thank you for sharing that." Then ask EXACTLY this question: "${q3}"
+
+STEP 5 — Closing: After the candidate finishes answering the final question, say EXACTLY: "Excellent! That concludes our interview today. Thank you so much for your time, ${name}. Your responses will be evaluated and you will receive detailed feedback shortly. Have a wonderful day!"
+
+ABSOLUTE RULES:
+- Follow all 5 steps in exact order — never skip or reorder
+- Do NOT ask any question other than the ones in STEP 2, 3, and 4
+- Keep transitions between steps to one sentence maximum
+- Do NOT offer your own feedback, scores, or opinions during the interview
+- After completing STEP 5, end the conversation immediately`
   }
 
-  // ── Start Call ──
+  // ── Score answers via backend after interview ends ───────────────────────
+  const scoreInterview = async (finalTranscript) => {
+    setScoring(true)
+    try {
+      const userMessages = (finalTranscript || transcriptRef.current)
+        .filter(t => t.role === "user")
+
+      // userMessages[0] = intro answer (skip), [1][2][3] = answers to 3 questions
+      const answers = interviewQuestions.map((q, i) => ({
+        question: q.question,
+        answer:   userMessages[i + 1]?.text || "No answer provided",
+      }))
+
+      const response = await axios.post(`${API_URL}/api/interview/score`, {
+        answers,
+        job_description: interviewConfig?.jobDescription || "",
+        question_type:   interviewConfig?.questionType || "technical",
+      })
+
+      const data = response.data
+      const dims = data.dimension_scores || {}
+
+      // Build strengths from high-scoring dimensions
+      const dimLabels = { relevance: "Strong topic relevance", depth: "Good answer depth", clarity: "Clear communication", confidence: "Confident delivery", structure: "Well-structured answers", sentiment: "Positive tone" }
+      const strengths = Object.entries(dims)
+        .filter(([, v]) => v >= 70)
+        .map(([k]) => dimLabels[k])
+        .slice(0, 3)
+
+      if (strengths.length === 0) strengths.push("Covered the core topics")
+
+      const overall = data.overall_score || 0
+      const summary = overall >= 75
+        ? `Strong performance overall. You demonstrated solid knowledge and communicated ideas clearly across all three questions.`
+        : overall >= 55
+        ? `Decent performance with room to grow. Your answers showed understanding but could benefit from more specific examples and depth.`
+        : `Keep practising. Focus on structuring answers with the STAR method and providing concrete examples to support your points.`
+
+      setFeedback({
+        overallScore:       overall,
+        relevance:          dims.relevance    || 0,
+        depth:              dims.depth        || 0,
+        communication:      dims.clarity      || 0,
+        confidence:         dims.confidence   || 0,
+        structure:          dims.structure    || 0,
+        strengths,
+        improvements:       data.feedback_hints || [],
+        summary,
+        perQuestionScores:  data.per_question_scores || [],
+        modelUsed:          data.model_used || "unknown",
+      })
+    } catch (err) {
+      console.error("[scoreInterview] error:", err)
+      setFeedback({
+        overallScore: 65,
+        relevance: 65, depth: 60, communication: 68, confidence: 62, structure: 64,
+        strengths: ["Completed the interview session"],
+        improvements: ["Could not connect to scoring service — scores are estimated"],
+        summary: "Interview completed. Scoring service unavailable; shown scores are estimates.",
+        perQuestionScores: [],
+        modelUsed: "offline",
+      })
+    } finally {
+      setScoring(false)
+    }
+  }
+
+  // ── Start call ───────────────────────────────────────────────────────────
   const startInterview = async () => {
+    if (interviewQuestions.length < 3) {
+      alert("Questions are still loading. Please wait a moment.")
+      return
+    }
+
     setCallStatus("connecting")
     setTranscript([])
     setFeedback(null)
 
-    // ── FIX 1: Request microphone permission FIRST ──
     try {
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       micStreamRef.current = micStream
-    } catch (micErr) {
-      console.error("Microphone permission denied:", micErr)
-      alert("Microphone access is required for the interview. Please allow microphone access and try again.")
+    } catch {
+      alert("Microphone access is required. Please allow it and try again.")
       setCallStatus("idle")
       return
     }
 
     const key = import.meta.env.VITE_VAPI_PUBLIC_KEY
-    if (!key) {
-      console.error("VAPI key missing. Please set VITE_VAPI_PUBLIC_KEY in client/.env")
-      runDemoMode()
-      return
-    }
+    if (!key) { runDemoMode(); return }
 
     try {
       vapiRef.current = new Vapi(key)
 
-      vapiRef.current.on("call-start", () => {
-        console.log("[VAPI] call-start")
-        setCallStatus("active")
-      })
+      vapiRef.current.on("call-start", () => setCallStatus("active"))
 
       vapiRef.current.on("call-end", () => {
-        console.log("[VAPI] call-end")
         setCallStatus("ended")
         setAiSpeaking(false)
         setUserSpeaking(false)
         stopMic()
+        scoreInterview(transcriptRef.current)
       })
 
-      vapiRef.current.on("speech-start", () => {
-        setAiSpeaking(true)
-        setUserSpeaking(false)
+      vapiRef.current.on("speech-start", () => { setAiSpeaking(true); setUserSpeaking(false) })
+      vapiRef.current.on("speech-end",   () => setAiSpeaking(false))
+
+      vapiRef.current.on("volume-level", vol => {
+        if (!aiSpeaking) setUserSpeaking(vol > 0.05)
       })
 
-      vapiRef.current.on("speech-end", () => {
-        setAiSpeaking(false)
-      })
-
-      vapiRef.current.on("volume-level", (volume) => {
-        // When AI is not speaking, volume reflects user mic
-        if (!aiSpeaking) {
-          setUserSpeaking(volume > 0.05)
-        }
-      })
-
-      vapiRef.current.on("message", (msg) => {
-        console.log("[VAPI] message:", msg)
-        // ── FIX 2: Correct transcript event handling ──
+      vapiRef.current.on("message", msg => {
         if (msg.type === "transcript" && msg.transcriptType === "final") {
-          setTranscript(prev => [...prev, { role: msg.role, text: msg.transcript }])
+          const entry = { role: msg.role, text: msg.transcript }
+          setTranscript(prev => {
+            const updated = [...prev, entry]
+            transcriptRef.current = updated
+            return updated
+          })
         }
       })
 
-      vapiRef.current.on("error", (e) => {
+      vapiRef.current.on("error", e => {
         console.error("[VAPI] error:", e)
         setCallStatus("idle")
         stopMic()
       })
 
-      // ── FIX 3: Correct VAPI start config ──
-      // - transcriber.provider must be "deepgram" (not "openai")
-      // - model config uses "systemPrompt" string (not "messages" array)
-      // - voice must be specified
       await vapiRef.current.start({
-        transcriber: {
-          provider: "deepgram",       // ✅ was "openai" — deepgram is VAPI's standard
-          model: "nova-2",
-          language: "en-US",
-        },
+        transcriber: { provider: "deepgram", model: "nova-2", language: "en-US" },
         model: {
-          provider: "openai",
-          model: "gpt-4o",
-          systemPrompt: buildSystemPrompt(), // ✅ was messages:[{role:"system",...}]
+          provider:     "openai",
+          model:        "gpt-4o",
+          systemPrompt: buildSystemPrompt(),
         },
-        voice: {
-          provider: "openai",         // ✅ was missing entirely
-          voiceId: "alloy",
-        },
-        firstMessage: `Hello ${interviewConfig?.name || "there"}, let's begin the mock interview.`,
+        voice:            { provider: "openai", voiceId: "alloy" },
+        firstMessage:     `Hello ${interviewConfig?.name || "there"}! Welcome to your ${interviewConfig?.questionType || "Technical"} interview. I am your AI interviewer today. Let us begin. Please introduce yourself and briefly describe your relevant experience.`,
         firstMessageMode: "assistant-speaks-first",
       })
-
-      console.log("[VAPI] start succeeded")
-
     } catch (err) {
       console.warn("[VAPI] start failed, falling back to demo mode:", err.message)
       runDemoMode()
     }
   }
 
-  // ── Stop mic tracks ──
   const stopMic = () => {
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop())
@@ -157,66 +826,58 @@ After 5-7 questions, thank them and end the interview politely.`
     }
   }
 
-  // ── Demo Mode fallback ──
+  // ── Demo mode (no VAPI key) ──────────────────────────────────────────────
   const runDemoMode = async () => {
     await new Promise(r => setTimeout(r, 1200))
     setCallStatus("active")
+    const q1 = interviewQuestions[0]?.question || "Tell me about yourself."
     const demoLines = [
-      { role: "assistant", text: `Hello ${interviewConfig?.name || "there"}! I'm your AI interviewer. We'll be doing a ${interviewConfig?.questionType || "technical"} interview. Are you ready?` },
-      { role: "assistant", text: "Great! Let's start — can you walk me through your background and experience?" },
+      { role: "assistant", text: `Hello ${interviewConfig?.name || "there"}! Please introduce yourself.` },
+      { role: "user",      text: "Hi, I am a software developer with 3 years of experience in React and Node.js." },
+      { role: "assistant", text: q1 },
+      { role: "user",      text: "In my previous role, I built a real-time dashboard that reduced load time by 40 percent using optimised queries and Redis caching." },
     ]
     for (let i = 0; i < demoLines.length; i++) {
-      await new Promise(r => setTimeout(r, 800 * (i + 1)))
-      setAiSpeaking(true)
-      await new Promise(r => setTimeout(r, 1500))
+      await new Promise(r => setTimeout(r, 1000))
+      if (demoLines[i].role === "assistant") { setAiSpeaking(true); await new Promise(r => setTimeout(r, 1200)) }
       setAiSpeaking(false)
-      setTranscript(prev => [...prev, demoLines[i]])
+      setTranscript(prev => {
+        const updated = [...prev, demoLines[i]]
+        transcriptRef.current = updated
+        return updated
+      })
     }
   }
 
-  // ── End Call ──
+  // ── End call ─────────────────────────────────────────────────────────────
   const endInterview = () => {
-    // ── FIX 4: Actually stop VAPI (was commented out) ──
-    if (vapiRef.current) {
-      vapiRef.current.stop()
-      vapiRef.current = null
-    }
+    if (vapiRef.current) { vapiRef.current.stop(); vapiRef.current = null }
     stopMic()
-
     setCallStatus("ended")
     setAiSpeaking(false)
     setUserSpeaking(false)
-
-    // Placeholder feedback — replace with real ML data
-    setFeedback({
-      overallScore: 78,
-      relevance: 82,
-      depth: 74,
-      communication: 79,
-      strengths: ["Clear problem-solving approach", "Good use of examples"],
-      improvements: ["Elaborate more on system design tradeoffs", "Pace answers slightly slower"],
-      summary: "Strong candidate with good fundamentals. Solid understanding of core concepts with room to deepen architectural thinking.",
-    })
+    scoreInterview(transcriptRef.current)
   }
 
-  // ── Toggle Mute ──
   const toggleMute = () => {
-    if (vapiRef.current) {
-      vapiRef.current.setMuted(!isMuted)
-    }
+    if (vapiRef.current) vapiRef.current.setMuted(!isMuted)
     setIsMuted(m => !m)
   }
 
-  // ── Download transcript ──
   const downloadResult = () => {
     if (!feedback && transcript.length === 0) return
     const lines = transcript.map(t => `[${t.role.toUpperCase()}]: ${t.text}`).join("\n\n")
     const fb = feedback
-      ? `\n\n--- FEEDBACK ---\nOverall Score: ${feedback.overallScore}/100\nSummary: ${feedback.summary}`
+      ? `\n\n--- FEEDBACK ---\nOverall Score: ${feedback.overallScore}/100\n` +
+        `Relevance: ${feedback.relevance}  Depth: ${feedback.depth}  Communication: ${feedback.communication}\n\n` +
+        `Strengths:\n${feedback.strengths.map(s => "• " + s).join("\n")}\n\n` +
+        `Areas to improve:\n${feedback.improvements.map(s => "• " + s).join("\n")}\n\n` +
+        `Summary: ${feedback.summary}\n` +
+        `Model used: ${feedback.modelUsed}`
       : ""
     const blob = new Blob([lines + fb], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement("a")
     a.href = url
     a.download = `interview-${interviewConfig?.name || "result"}-${Date.now()}.txt`
     a.click()
@@ -226,15 +887,14 @@ After 5-7 questions, thank them and end the interview politely.`
   const statusLabel = { idle: "Ready", connecting: "Connecting…", active: "Live", ended: "Completed" }
   const statusColor = { idle: "text-gray-500", connecting: "text-yellow-400", active: "text-green-400", ended: "text-[#e99b63]" }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-black text-white flex flex-col overflow-hidden">
-
       <div className="fixed top-[15%] right-[-8%] w-[25rem] h-0 shadow-[0_0_600px_25px_#e99b6322] -rotate-[25deg] -z-10 pointer-events-none" />
-      <div className="fixed bottom-[10%] left-[-5%] w-[20rem] h-0 shadow-[0_0_400px_15px_#e99b6318] rotate-[15deg] -z-10 pointer-events-none" />
 
-      {/* ── TOP NAV ── */}
+      {/* TOP NAV */}
       <header className="flex items-center gap-3 px-4 lg:px-8 py-3 border-b border-gray-800 shrink-0">
-        <button className="px-5 py-2 rounded-lg border border-[#e99b63] text-[#e99b63] text-xs tracking-widest font-medium bg-[#e99b63]/8 cursor-pointer">
+        <button className="px-5 py-2 rounded-lg border border-[#e99b63] text-[#e99b63] text-xs tracking-widest font-medium bg-[#e99b63]/8">
           1 · INTERVIEW
         </button>
         <button disabled className="px-5 py-2 rounded-lg border border-gray-800 text-gray-600 text-xs tracking-widest font-medium cursor-not-allowed">
@@ -252,19 +912,15 @@ After 5-7 questions, thank them and end the interview politely.`
             <span className="ml-1 font-mono text-green-400">{formatTime(callDuration)}</span>
           )}
         </div>
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-2 py-2 px-4 rounded-lg border border-gray-700 text-xs tracking-widest text-gray-400 transition-all duration-200 hover:border-white hover:text-white hover:bg-white/5 cursor-pointer"
-        >
-          <i className="ri-logout-box-r-line" />
-          LOGOUT
+        <button onClick={onLogout} className="flex items-center gap-2 py-2 px-4 rounded-lg border border-gray-700 text-xs tracking-widest text-gray-400 transition-all duration-200 hover:border-white hover:text-white hover:bg-white/5 cursor-pointer">
+          <i className="ri-logout-box-r-line" />LOGOUT
         </button>
       </header>
 
-      {/* ── MAIN LAYOUT ── */}
+      {/* MAIN LAYOUT */}
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
 
-        {/* ════ LEFT PANEL – RESULT ════ */}
+        {/* LEFT PANEL — Result */}
         <aside className="w-full lg:w-[38%] border-b lg:border-b-0 lg:border-r border-gray-800 flex flex-col p-5 gap-4 overflow-hidden">
           <div className="flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
@@ -274,30 +930,48 @@ After 5-7 questions, thank them and end the interview politely.`
             {feedback && (
               <span className="text-xs tracking-widest text-gray-500">
                 Score: <span className="text-white font-semibold">{feedback.overallScore}/100</span>
+                {feedback.modelUsed && feedback.modelUsed !== "unknown" && (
+                  <span className="ml-2 text-gray-700">· {feedback.modelUsed.includes("finetuned") ? "DeBERTa" : feedback.modelUsed}</span>
+                )}
               </span>
             )}
           </div>
 
-          {feedback ? (
+          {/* ── Result content ── */}
+          {scoring ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 border border-dashed border-gray-800 rounded-2xl p-6">
+              <div className="flex gap-1.5">
+                {[0, 150, 300].map(d => (
+                  <span key={d} className="w-2 h-2 bg-[#e99b63] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                ))}
+              </div>
+              <p className="text-xs tracking-widest text-gray-600 uppercase">Scoring your answers…</p>
+            </div>
+          ) : feedback ? (
             <div className="flex-1 overflow-y-auto space-y-5 pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#333 transparent" }}>
+
+              {/* Dimension bars */}
               <div className="space-y-3">
                 {[
                   { label: "Relevance",     value: feedback.relevance },
                   { label: "Depth",         value: feedback.depth },
                   { label: "Communication", value: feedback.communication },
+                  { label: "Confidence",    value: feedback.confidence },
+                  { label: "Structure",     value: feedback.structure },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <div className="flex justify-between text-xs tracking-wider text-gray-400 mb-1.5">
                       <span>{label}</span><span className="text-white">{value}%</span>
                     </div>
                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#e99b63] to-[#c47a40] rounded-full"
-                        style={{ width: `${value}%`, transition: "width 1.2s cubic-bezier(.4,0,.2,1)" }} />
+                      <div className="h-full bg-gradient-to-r from-[#e99b63] to-[#c47a40] rounded-full transition-all duration-[1200ms]"
+                        style={{ width: `${value}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
 
+              {/* Overall radial + summary */}
               <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-800 bg-white/[0.02]">
                 <div className="relative w-16 h-16 shrink-0">
                   <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
@@ -308,16 +982,28 @@ After 5-7 questions, thank them and end the interview politely.`
                       strokeLinecap="round"
                       style={{ transition: "stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)" }} />
                   </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
-                    {feedback.overallScore}
-                  </span>
+                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{feedback.overallScore}</span>
                 </div>
-                <div>
-                  <p className="text-xs tracking-widest text-gray-500 uppercase mb-1">Overall</p>
-                  <p className="text-sm text-gray-300 leading-relaxed">{feedback.summary}</p>
-                </div>
+                <p className="text-sm text-gray-300 leading-relaxed">{feedback.summary}</p>
               </div>
 
+              {/* Per-question scores */}
+              {feedback.perQuestionScores?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs tracking-widest text-gray-600 uppercase">Per Question</p>
+                  {feedback.perQuestionScores.map((pq, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-gray-800 bg-white/[0.01]">
+                      <span className="text-xs text-[#e99b63] font-mono mt-0.5 shrink-0">Q{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-400 truncate">{pq.question}</p>
+                        <p className="text-sm text-white font-medium mt-0.5">{pq.score}/100</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Strengths */}
               <div className="space-y-2">
                 <p className="text-xs tracking-widest text-gray-600 uppercase">Strengths</p>
                 {feedback.strengths.map((s, i) => (
@@ -327,6 +1013,7 @@ After 5-7 questions, thank them and end the interview politely.`
                 ))}
               </div>
 
+              {/* Improvements */}
               <div className="space-y-2">
                 <p className="text-xs tracking-widest text-gray-600 uppercase">Improve</p>
                 {feedback.improvements.map((s, i) => (
@@ -338,40 +1025,55 @@ After 5-7 questions, thank them and end the interview politely.`
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center border border-dashed border-gray-800 rounded-2xl p-6">
-              <div className="w-14 h-14 rounded-full border border-gray-800 flex items-center justify-center">
-                <i className="ri-bar-chart-2-line text-2xl text-gray-700" />
-              </div>
-              <p className="text-xs tracking-widest text-gray-700 uppercase max-w-[16rem]">
-                {callStatus === "active" ? "Interview in progress…" : "Results will appear here after your interview"}
-              </p>
-              {callStatus === "active" && (
-                <div className="flex gap-1 mt-1">
-                  {[0, 150, 300].map(delay => (
-                    <span key={delay} className="w-1.5 h-1.5 bg-[#e99b63] rounded-full animate-bounce"
-                      style={{ animationDelay: `${delay}ms` }} />
-                  ))}
-                </div>
+              {questionsLoading ? (
+                <>
+                  <div className="w-14 h-14 rounded-full border border-gray-800 flex items-center justify-center">
+                    <i className="ri-loader-4-line text-2xl text-gray-700 animate-spin" />
+                  </div>
+                  <p className="text-xs tracking-widest text-gray-700 uppercase">Loading questions…</p>
+                </>
+              ) : questionsError ? (
+                <>
+                  <i className="ri-error-warning-line text-2xl text-red-500" />
+                  <p className="text-xs text-red-400">{questionsError}</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-14 h-14 rounded-full border border-gray-800 flex items-center justify-center">
+                    <i className="ri-bar-chart-2-line text-2xl text-gray-700" />
+                  </div>
+                  <p className="text-xs tracking-widest text-gray-700 uppercase max-w-[16rem]">
+                    {callStatus === "active" ? "Interview in progress…" : "Results appear here after your interview"}
+                  </p>
+                  {callStatus === "idle" && !questionsLoading && interviewQuestions.length > 0 && (
+                    <div className="mt-2 space-y-1.5 w-full text-left">
+                      <p className="text-xs tracking-widest text-gray-700 uppercase mb-2">Questions queued</p>
+                      {interviewQuestions.map((q, i) => (
+                        <div key={q.id} className="flex gap-2 text-xs text-gray-600">
+                          <span className="text-[#e99b63] shrink-0">Q{i + 1}</span>
+                          <span className="line-clamp-1">{q.question}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
 
-          <button
-            onClick={downloadResult}
-            disabled={!feedback && transcript.length === 0}
-            className="shrink-0 flex items-center justify-center gap-2 py-3 px-5 rounded-xl border border-gray-700 text-sm tracking-widest text-gray-400 transition-all duration-200 hover:border-[#e99b63] hover:text-[#e99b63] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-          >
+          <button onClick={downloadResult} disabled={!feedback && transcript.length === 0}
+            className="shrink-0 flex items-center justify-center gap-2 py-3 px-5 rounded-xl border border-gray-700 text-sm tracking-widest text-gray-400 transition-all duration-200 hover:border-[#e99b63] hover:text-[#e99b63] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
             <i className="ri-download-2-line" />Download
           </button>
         </aside>
 
-        {/* ════ RIGHT PANEL – VAPI AI ════ */}
+        {/* RIGHT PANEL — VAPI */}
         <main className="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 gap-8">
           <div className="relative w-full max-w-lg">
             <div className={`relative rounded-2xl border overflow-hidden transition-all duration-500
               ${callStatus === "active"
-                ? aiSpeaking
-                  ? "border-[#e99b63] shadow-[0_0_40px_rgba(233,155,99,0.2)]"
-                  : "border-gray-700 shadow-[0_0_20px_rgba(233,155,99,0.08)]"
+                ? aiSpeaking ? "border-[#e99b63] shadow-[0_0_40px_rgba(233,155,99,0.2)]"
+                             : "border-gray-700 shadow-[0_0_20px_rgba(233,155,99,0.08)]"
                 : "border-gray-800"}
               bg-gradient-to-b from-[#0d0d0d] to-black`}>
 
@@ -382,11 +1084,8 @@ After 5-7 questions, thank them and end the interview politely.`
               <div className="p-8 min-h-[18rem] flex flex-col items-center justify-center gap-6">
                 <div className="relative">
                   <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300
-                    ${callStatus === "active"
-                      ? "bg-[#e99b63]/15 border-2 border-[#e99b63]/60"
-                      : "bg-gray-900 border-2 border-gray-800"}`}>
-                    <i className={`ri-customer-service-2-line text-4xl transition-colors duration-300
-                      ${callStatus === "active" ? "text-[#e99b63]" : "text-gray-600"}`} />
+                    ${callStatus === "active" ? "bg-[#e99b63]/15 border-2 border-[#e99b63]/60" : "bg-gray-900 border-2 border-gray-800"}`}>
+                    <i className={`ri-customer-service-2-line text-4xl transition-colors duration-300 ${callStatus === "active" ? "text-[#e99b63]" : "text-gray-600"}`} />
                   </div>
                   {callStatus === "active" && aiSpeaking && (
                     <>
@@ -400,8 +1099,11 @@ After 5-7 questions, thank them and end the interview politely.`
                   <div className="text-center">
                     <p className="text-lg font-light tracking-widest text-gray-300 mb-1">VAPI AI</p>
                     <p className="text-xs tracking-[0.2em] text-gray-600">
-                      {interviewConfig?.questionType?.toUpperCase() || "INTERVIEW"} · VOICE ASSISTANT
+                      {interviewConfig?.questionType?.toUpperCase() || "INTERVIEW"} · 5 QUESTIONS
                     </p>
+                    {questionsLoading && (
+                      <p className="text-xs text-yellow-500 mt-2">Loading questions…</p>
+                    )}
                   </div>
                 )}
 
@@ -416,16 +1118,8 @@ After 5-7 questions, thank them and end the interview politely.`
                   <div className="text-center space-y-3 w-full">
                     <div className="flex items-end justify-center gap-1 h-10">
                       {Array.from({ length: 20 }).map((_, i) => (
-                        <div key={i}
-                          className={`w-1.5 rounded-full transition-all duration-150 ${
-                            aiSpeaking ? "bg-[#e99b63]" : userSpeaking ? "bg-white" : "bg-gray-700"
-                          }`}
-                          style={{
-                            height: (aiSpeaking || userSpeaking) ? "4px" : "4px",
-                            animation: (aiSpeaking || userSpeaking)
-                              ? `wave ${0.4 + i * 0.05}s ease-in-out infinite alternate` : "none",
-                          }}
-                        />
+                        <div key={i} className={`w-1.5 rounded-full transition-all duration-150 ${aiSpeaking ? "bg-[#e99b63]" : userSpeaking ? "bg-white" : "bg-gray-700"}`}
+                          style={{ height: "4px", animation: (aiSpeaking || userSpeaking) ? `wave ${0.4 + i * 0.05}s ease-in-out infinite alternate` : "none" }} />
                       ))}
                     </div>
                     <p className="text-xs tracking-widest text-gray-500">
@@ -434,11 +1128,22 @@ After 5-7 questions, thank them and end the interview politely.`
                   </div>
                 )}
 
-                {callStatus === "ended" && (
+                {callStatus === "ended" && !scoring && (
                   <div className="text-center space-y-2">
                     <i className="ri-checkbox-circle-line text-4xl text-[#e99b63]" />
                     <p className="text-sm tracking-widest text-[#e99b63]">Interview Complete</p>
                     <p className="text-xs tracking-wider text-gray-600">Review your results on the left</p>
+                  </div>
+                )}
+
+                {scoring && callStatus === "ended" && (
+                  <div className="text-center space-y-3">
+                    <div className="flex gap-1.5 justify-center">
+                      {[0, 150, 300].map(d => (
+                        <span key={d} className="w-2 h-2 bg-[#e99b63] rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                      ))}
+                    </div>
+                    <p className="text-xs tracking-widest text-gray-500">Analysing your answers…</p>
                   </div>
                 )}
               </div>
@@ -456,19 +1161,19 @@ After 5-7 questions, thank them and end the interview politely.`
             </div>
           </div>
 
-          {/* ── Controls ── */}
+          {/* Controls */}
           <div className="flex flex-col items-center gap-4 w-full max-w-lg">
             {callStatus === "idle" && (
-              <button onClick={startInterview}
-                className="w-full py-4 px-8 rounded-full bg-[#a7a7a7] text-black font-semibold uppercase tracking-widest text-sm transition-all duration-300 hover:bg-white hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] cursor-pointer flex items-center justify-center gap-3">
-                <i className="ri-mic-line text-lg" />START INTERVIEW
+              <button onClick={startInterview} disabled={questionsLoading || !!questionsError}
+                className="w-full py-4 px-8 rounded-full bg-[#a7a7a7] text-black font-semibold uppercase tracking-widest text-sm transition-all duration-300 hover:bg-white hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3">
+                <i className="ri-mic-line text-lg" />
+                {questionsLoading ? "LOADING QUESTIONS…" : "START INTERVIEW"}
               </button>
             )}
 
             {callStatus === "connecting" && (
               <button disabled className="w-full py-4 px-8 rounded-full bg-gray-800 text-gray-500 font-semibold uppercase tracking-widest text-sm cursor-not-allowed flex items-center justify-center gap-3">
-                <span className="w-3 h-3 rounded-full border-2 border-gray-500 border-t-white animate-spin" />
-                CONNECTING
+                <span className="w-3 h-3 rounded-full border-2 border-gray-500 border-t-white animate-spin" />CONNECTING
               </button>
             )}
 
@@ -476,9 +1181,7 @@ After 5-7 questions, thank them and end the interview politely.`
               <div className="flex gap-3 w-full">
                 <button onClick={toggleMute}
                   className={`flex items-center justify-center gap-2 py-4 px-5 rounded-full border text-sm tracking-widest font-medium transition-all duration-200 cursor-pointer
-                    ${isMuted
-                      ? "border-red-500/60 text-red-400 bg-red-500/10"
-                      : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white"}`}>
+                    ${isMuted ? "border-red-500/60 text-red-400 bg-red-500/10" : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white"}`}>
                   <i className={isMuted ? "ri-mic-off-line" : "ri-mic-line"} />
                   <span className="hidden sm:inline">{isMuted ? "UNMUTE" : "MUTE"}</span>
                 </button>
@@ -491,8 +1194,7 @@ After 5-7 questions, thank them and end the interview politely.`
 
             {callStatus === "ended" && (
               <div className="flex gap-3 w-full">
-                <button
-                  onClick={() => { setCallStatus("idle"); setTranscript([]); setFeedback(null) }}
+                <button onClick={() => { setCallStatus("idle"); setTranscript([]); setFeedback(null) }}
                   className="flex-1 py-4 px-6 rounded-full border border-gray-700 text-gray-400 font-semibold uppercase tracking-widest text-sm transition-all duration-200 hover:border-white hover:text-white cursor-pointer flex items-center justify-center gap-2">
                   <i className="ri-restart-line" />RETRY
                 </button>
@@ -503,12 +1205,12 @@ After 5-7 questions, thank them and end the interview politely.`
               </div>
             )}
 
-            {interviewConfig && callStatus !== "ended" && (
+            {interviewConfig && callStatus !== "ended" && !questionsLoading && (
               <div className="flex flex-wrap gap-2 justify-center">
                 {[
-                  { icon: "ri-user-3-line",      label: interviewConfig.name },
-                  { icon: "ri-code-s-slash-line", label: interviewConfig.questionType },
-                  { icon: "ri-tools-line",        label: interviewConfig.technicalSkills?.split(",")[0]?.trim() },
+                  { icon: "ri-user-3-line",       label: interviewConfig.name },
+                  { icon: "ri-code-s-slash-line",  label: interviewConfig.questionType },
+                  { icon: "ri-question-line",      label: `${interviewQuestions.length} questions` },
                 ].filter(x => x.label).map(({ icon, label }) => (
                   <span key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-800 text-xs tracking-wider text-gray-500">
                     <i className={icon} />{label}
@@ -520,6 +1222,7 @@ After 5-7 questions, thank them and end the interview politely.`
         </main>
       </div>
 
+      {/* Live transcript strip */}
       {transcript.length > 2 && callStatus !== "idle" && (
         <div ref={scrollRef}
           className="hidden lg:block fixed bottom-0 right-0 w-[60%] max-h-24 overflow-y-auto bg-black/80 backdrop-blur border-t border-gray-800 px-6 py-3 space-y-1"
@@ -536,10 +1239,7 @@ After 5-7 questions, thank them and end the interview politely.`
       )}
 
       <style>{`
-        @keyframes wave {
-          from { transform: scaleY(0.4); }
-          to   { transform: scaleY(1.2); }
-        }
+        @keyframes wave { from { transform: scaleY(0.4); } to { transform: scaleY(1.2); } }
       `}</style>
     </div>
   )

@@ -48,6 +48,9 @@ scorer: InterviewScorer = None
 spacy_analyzer: SpacyAnalyzer = None
 
 
+STRICT_MODE = os.getenv("ML_STRICT", "false").lower() in ["1","true","yes"]
+
+
 @app.on_event("startup")
 async def startup_event():
     global scorer, spacy_analyzer
@@ -56,6 +59,11 @@ async def startup_event():
     scorer.load()
     logger.info("Loading spaCy pipeline…")
     spacy_analyzer = SpacyAnalyzer()
+
+    if STRICT_MODE and not scorer.is_loaded:
+        logger.error("STRICT_MODE is enabled but DeBERTa model failed to load. Shutting down.")
+        raise RuntimeError("DeBERTa model unavailable in strict ML mode")
+
     logger.info("✅ All models ready.")
 
 
@@ -136,6 +144,10 @@ def score_answer(req: ScoreRequest):
     Combines DeBERTa neural scores with spaCy rule-based analysis.
     """
     t0 = time.time()
+
+    # 0. Enforce strict availability mode
+    if STRICT_MODE and (scorer is None or not scorer.is_loaded):
+        raise HTTPException(status_code=503, detail="ML model unavailable in strict mode")
 
     # 1. Validate
     errors = validate_inputs(req.question, req.answer)

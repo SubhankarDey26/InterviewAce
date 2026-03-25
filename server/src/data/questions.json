@@ -1,0 +1,34 @@
+{
+  "technical": [
+    { "id": "t1", "question": "Explain the difference between SQL and NoSQL databases. When would you choose one over the other?" },
+    { "id": "t2", "question": "What is Big O notation? Give an example comparing O(n²) and O(n log n) algorithms." },
+    { "id": "t3", "question": "Explain RESTful API design principles. What makes a good REST API?" },
+    { "id": "t4", "question": "What is the difference between synchronous and asynchronous programming? When do you use async/await?" },
+    { "id": "t5", "question": "How would you design a scalable web application? Walk me through the key architectural decisions." },
+    { "id": "t6", "question": "What is the difference between a process and a thread? How does Node.js handle concurrency?" },
+    { "id": "t7", "question": "Explain database indexing. When would you add an index, and what are the trade-offs?" },
+    { "id": "t8", "question": "Explain the SOLID principles. Give me a concrete example of one principle you've applied." },
+    { "id": "t9", "question": "What happens end-to-end when you type a URL in the browser and press Enter?" },
+    { "id": "t10", "question": "Compare microservices and monolithic architecture. What are the real-world trade-offs?" }
+  ],
+  "behavioral": [
+    { "id": "b1", "question": "Tell me about a time you had to deal with a difficult team member. How did you handle the situation?" },
+    { "id": "b2", "question": "Describe a situation where you had to meet a very tight deadline. What was your approach and what was the outcome?" },
+    { "id": "b3", "question": "Tell me about a time you failed at a project or task. What did you learn from it?" },
+    { "id": "b4", "question": "Describe a time when you had to learn a completely new technology quickly. How did you approach it?" },
+    { "id": "b5", "question": "Tell me about a project you are most proud of. What was your specific contribution and impact?" },
+    { "id": "b6", "question": "Describe a time when you disagreed with your manager or a senior colleague. How did you handle it?" },
+    { "id": "b7", "question": "Tell me about a time you had to manage multiple competing priorities or deadlines. What did you do?" },
+    { "id": "b8", "question": "Describe a situation where you had to give difficult feedback to a peer or team member." }
+  ],
+  "hr": [
+    { "id": "h1", "question": "Where do you see yourself in five years, and how does this role fit into that vision?" },
+    { "id": "h2", "question": "What are your two or three greatest professional strengths? Give me examples of how they have helped you." },
+    { "id": "h3", "question": "What is your biggest weakness, and what concrete steps are you taking to improve it?" },
+    { "id": "h4", "question": "Why are you looking to leave your current role, and what are you hoping to find in your next position?" },
+    { "id": "h5", "question": "How do you handle stress and pressure at work? Give me a specific example." },
+    { "id": "h6", "question": "What motivates you to perform at your best, and how do you stay engaged on long-running projects?" },
+    { "id": "h7", "question": "How do you stay current with industry trends and continue growing professionally?" },
+    { "id": "h8", "question": "Describe your ideal working environment and the management style you work best under." }
+  ]
+}

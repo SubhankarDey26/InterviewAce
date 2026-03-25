@@ -4,7 +4,7 @@ uvicorn[standard]==0.27.0
 pydantic==2.5.3
 
 # ─── ML / NLP core ────────────────────────────────────────────────────────────
-torch==2.1.2                          # CPU build; use torch==2.1.2+cu121 for CUDA
+torch==2.3.1                          # CPU build; use torch==2.1.2+cu121 for CUDA
 transformers==4.37.0                  # DeBERTa-v3, tokenizers
 accelerate==0.26.1                    # Faster model loading
 
@@ -16,7 +16,7 @@ spacy==3.7.2
 numpy==1.26.3
 scikit-learn==1.4.0                   # Metrics, splitting
 datasets==2.16.1                      # HuggingFace datasets (optional, for large datasets)
-sentencepiece==0.1.99                 # Required by DeBERTa tokenizer
+sentencepiece==0.2.0                 # Required by DeBERTa tokenizer
 
 # ─── Utils ────────────────────────────────────────────────────────────────────
 python-dotenv==1.0.0
